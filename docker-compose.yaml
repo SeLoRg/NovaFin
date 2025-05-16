@@ -1,0 +1,172 @@
+services:
+  db:
+    image: postgres:16.0
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+  redis:
+    image: redis:7.4.2
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+
+  auth:
+    image: auth-service:1.0
+    build:
+      context: app/backend
+      dockerfile: ./auth/Dockerfile
+    ports:
+      - "8081:8001"
+    env_file:
+      - app/backend/auth/.env
+      - app/backend/celery_workers/notifications/.env
+    depends_on:
+      - db
+      - redis
+
+  wallet_worker:
+    image: wallet-worker:1.0
+    build:
+      context: app/backend
+      dockerfile: ./wallet_worker/Dockerfile
+
+    container_name: wallet_worker
+    restart: on-failure
+    env_file:
+      - app/backend/wallet_worker/.env
+      - .env
+
+    ports:
+      - "8083:8003"
+
+
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+      db:
+        condition: service_started
+
+      redis:
+        condition: service_started
+
+  wallet:
+    image: wallet-service:1.0
+    build:
+      context: app/backend
+      dockerfile: ./wallet_service/Dockerfile
+
+    container_name: wallet_service
+    restart: on-failure
+
+    ports:
+      - "8084:8004"
+
+    env_file:
+      - app/backend/wallet_service/.env
+      - .env
+
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      db:
+        condition: service_started
+
+
+  getaway:
+    image: getaway-service:1.0
+    build:
+      context: app/backend
+      dockerfile: ./getaway/Dockerfile
+
+    ports:
+      - "8082:8000"
+
+    env_file:
+      - app/backend/getaway/.env
+
+    depends_on:
+      - db
+      - redis
+
+  notifications:
+    image: celery-notifications:1.0
+    build:
+      context: app/backend
+      dockerfile: ./celery_workers/notifications/Dockerfile
+    env_file:
+      - app/backend/celery_workers/notifications/.env
+
+    depends_on:
+      - redis
+
+  alembic_service:
+    image: alembic_service:1.0
+    build:
+      context: .
+      dockerfile: alembic_service/Dockerfile
+    env_file:
+      - alembic_service/.env
+    depends_on:
+      db:
+        condition: service_healthy
+
+    volumes:
+      - ./alembic_service/migrations/versions:/alembic_service/migrations/versions
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2182:2181"
+
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-log:/var/lib/zookeeper/log
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9093:9092"
+      - "29093:29092"  # Внутренний порт для Docker-сети
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: [ "CMD-SHELL", "kafka-topics --bootstrap-server kafka:9092 --list || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+
+volumes:
+  db-data:
+  kafka-data:
+  zookeeper-data:
+  zookeeper-log:
+  redis_data:

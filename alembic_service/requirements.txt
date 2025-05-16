@@ -1,0 +1,4 @@
+alembic
+pydantic
+pydantic_settings
+asyncpg

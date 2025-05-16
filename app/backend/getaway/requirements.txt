@@ -1,0 +1,10 @@
+uvicorn
+pydantic
+pydantic_settings
+fastapi
+sqlalchemy
+grpcio
+grpcio-tools
+protobuf
+redis
+httpx

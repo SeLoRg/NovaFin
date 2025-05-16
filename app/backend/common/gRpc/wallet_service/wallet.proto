@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+package wallet;
+
+service WalletService {
+  // Создание нового кошелька для пользователя
+  rpc CreateWallet (CreateWalletRequest) returns (WalletResponse);
+
+  // Получение баланса по пользователю
+  rpc GetBalance (GetBalanceRequest) returns (BalanceResponse);
+
+  // Перевод средств между кошельками
+  rpc Transfer (TransferRequest) returns (OperationResponse);
+  // Конвертация валюты в кошельке
+  rpc Convert (ConvertRequest) returns (OperationResponse);
+
+  // Списание средств с кошелька
+  rpc Withdraw (WithdrawRequest) returns (OperationResponse);
+
+  // Создание транзакции на оплату через платежный шлюз
+  rpc CreatePaymentTransaction (CreatePaymentTransactionRequest) returns (PaymentTransactionResponse);
+  // Пополнение кошелька
+  rpc Deposit (DepositRequest) returns (OperationResponse);
+}
+
+// ========== Request/Response Messages ========== //
+
+message CreateWalletRequest {
+  string user_id = 1;          // ID пользователя
+}
+
+message WalletResponse {
+  string wallet_id = 1;        // ID созданного кошелька
+  string created_at = 2;       // Дата создания (ISO 8601)
+}
+
+message GetBalanceRequest {
+  string user_id = 1;          // ID пользователя
+  optional string currency = 2; // Опциональная фильтрация по валюте
+}
+
+message BalanceResponse {
+  string user_id = 1;          // ID пользователя
+  repeated BalanceEntry balances = 2;
+
+  message BalanceEntry {
+    string currency = 1;
+    double amount = 2;
+    string type = 3;           // FIAT/CRYPTO
+  }
+}
+
+message TransferRequest {
+  string from_user_id = 1;     // ID пользователя-отправителя
+  string to_user_id = 2;       // ID пользователя-получателя
+  double amount = 3;           // Сумма перевода
+  string currency = 4;         // Валюта перевода
+  string idempotency_key = 5;  // Ключ идемпотентности
+}
+
+message DepositRequest {
+  string user_id = 1;          // ID пользователя
+  double amount = 2;           // Сумма пополнения
+  string currency = 3;         // Валюта
+  string idempotency_key = 4;  // Ключ идемпотентности
+}
+
+message WithdrawRequest {
+  string user_id = 1;          // ID пользователя
+  double amount = 2;           // Сумма списания
+  string currency = 3;         // Валюта
+  string idempotency_key = 4;  // Ключ идемпотентности
+}
+
+message ConvertRequest {
+  string user_id = 1;          // ID пользователя
+  string from_currency = 2;    // Исходная валюта
+  string to_currency = 3;      // Целевая валюта
+  double amount = 4;           // Сумма для конвертации
+  string idempotency_key = 5;  // Ключ идемпотентности
+}
+
+message OperationResponse {
+  string correlation_id = 1;     // ID операции
+  string status = 2;           // Статус (PROCESSING/COMPLETED/FAILED)
+}
+
+message CreatePaymentTransactionRequest {
+  string user_id = 1;          // ID пользователя
+  double amount = 2;           // Сумма пополнения
+  string currency = 3;         // Валюта
+  string gateway = 4;          // платежный шлюз
+  string external_id = 5;      // Внешний ID транзакции
+}
+
+message PaymentTransactionResponse {
+  string transaction_id = 1;   // ID транзакции
+  string status = 2;           // "PENDING"
+  string gateway_url = 3;      // URL для оплаты
+  string created_at = 4;       // Дата создания
+}
+
+// ========== Common Types ========== //
+
+enum Currency {
+  RUB = 0;
+  USD = 1;
+  EUR = 2;
+}
+
+enum AccountType {
+  FIAT = 0;
+  CRYPTO = 1;
+}

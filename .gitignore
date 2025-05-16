@@ -1,0 +1,5 @@
+.venv
+.env
+*.secret
+config.ini
+jwt_private.pem

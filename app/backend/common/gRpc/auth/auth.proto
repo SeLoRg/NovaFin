@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package auth;
+service AuthService {
+    rpc CheckAccess (CheckAccessRequest) returns (CheckAccessResponse);
+    rpc GetNewTokens (GetNewTokensRequest) returns (GetNewTokensResponse);
+    rpc Login (LoginRequest) returns (LoginResponse);
+    rpc Logout (LogoutRequest) returns (LogoutResponse);
+    rpc Registrate (RegistrateRequest) returns (RegistrateResponse);
+    rpc Verify_2fa (Verify2faRequest) returns (Verify2faResponse);
+    rpc Handle_google_callback (HandleGoogleCallbackRequest) returns (HandleGoogleCallbackResponse);
+    rpc Get_google_auth_url (GetGoogleAuthUrlRequest) returns (GetGoogleAuthUrlResponse);
+}
+message BaseResponse {
+    string status = 1; // "success" или "error"
+    string message = 2;
+    map<string, string> detail = 3;
+}
+message CheckAccessRequest {
+    string jwt_access = 1;
+}
+message CheckAccessResponse {
+    BaseResponse meta = 1;
+}
+message GetNewTokensRequest {
+    string jwt_access = 1;
+    string jwt_refresh = 2;
+}
+message GetNewTokensResponse {
+    BaseResponse meta = 1;
+}
+message LoginRequest {
+    string user_email = 1;
+    string password = 2;
+}
+message LoginResponse {
+    BaseResponse meta = 1;
+}
+message LogoutRequest {
+    string jwt_access = 1;
+    string jwt_refresh = 2;
+}
+message LogoutResponse {
+    BaseResponse meta = 1;
+}
+message RegistrateRequest{
+    string login = 1;
+    string password = 2;
+}
+message RegistrateResponse{
+    BaseResponse meta = 1;
+}
+message Verify2faRequest {
+    string user_id = 1;
+    string opt_code = 2;
+}
+message Verify2faResponse {
+    BaseResponse meta = 1;
+}
+message HandleGoogleCallbackRequest {
+    string code = 1;
+}
+message HandleGoogleCallbackResponse{
+    BaseResponse meta = 1;
+}
+message GetGoogleAuthUrlRequest {
+
+}
+message GetGoogleAuthUrlResponse {
+    BaseResponse meta = 1;
+}

@@ -70,16 +70,11 @@ class OperationResponse(BaseModel):
 
 
 class CreatePaymentTransactionRequest(BaseModel):
-    user_id: str = Field(..., description="ID пользователя")
     amount: float
     currency: ValuteCode
     gateway: PaymentWorker
-    external_id: str
+    idempotency_key: str
 
 
 class PaymentTransactionResponse(BaseModel):
-    transaction_id: str
-    user_id: str
-    status: str = "PENDING"
-    gateway_url: Optional[str] = None
-    created_at: datetime
+    redirect_url: str

@@ -2,6 +2,8 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional, List
+
+import stripe
 from pydantic import BaseModel
 from enum import Enum
 import json
@@ -26,6 +28,9 @@ from wallet_service.Core.async_kafka_client import async_kafka_client
 class PaymentGateway(str, Enum):
     STRIPE = "stripe"
     CLOUDPAYMENTS = "cloudpayments"
+
+
+stripe.api_key = settings.STRIPE_PRIVATE_KEY
 
 
 class WalletCore:
@@ -250,27 +255,66 @@ class WalletCore:
         """Пополнение баланса"""
         pass
 
-    async def create_payment_transaction(
+    async def handle_webhook(self, payload: bytes, sig_header: str):
+        """Обрабатывает вебхук от Stripe"""
+        event = stripe.Webhook.construct_event(payload, sig_header, self.webhook_secret)
+
+        if event.type == "payment_intent.succeeded":
+            payment = event.data.object
+            await self._process_success_payment(payment)
+
+        return event
+
+    async def create_payment_transaction_url(
         self,
         session: AsyncSession,
-        wallet_id: str,
+        user_id: str,
         amount: float,
+        idempotency_key: str,
         currency: ValuteCode,
         gateway: PaymentGateway,
-        external_id: str,
     ) -> dict:
         """Создание транзакции для платежного шлюза"""
-        transaction_id = str(uuid.uuid4())
+        logger.info(f"--Создание транзакции для платежного шлюза--")
 
-        # Логика сохранения транзакции в статусе PENDING
-        # await self.db.execute(...)
+        logger.info(f"Проверка идемпотентности...")
+        if await self._check_idempotency(idempotency_key):
+            raise ValueError(
+                f"Операция с idempotency_key={idempotency_key} уже обработана"
+            )
+        logger.info(
+            f"Выбор метода создания в зависимоти от платежного шлюза({gateway.value})..."
+        )
+        handlers = {f"{PaymentGateway.STRIPE.value}": self._create_payment_stripe}
+        redirect_url: str = await handlers[gateway.value](
+            amount=amount, currency=currency
+        )
+        logger.info(f"Получение кошелька пользователя id={user_id}...")
+        user_wallet_id: int = await self._get_wallet_id(
+            session=session, user_id=int(user_id)
+        )
+        logger.info(f"Кошелек получен")
 
-        return {
-            "transaction_id": transaction_id,
-            "status": "PENDING",
-            "gateway_url": f"https://{gateway}.com/pay/{external_id}",
-            "created_at": datetime.utcnow().isoformat(),
-        }
+        logger.info(f"Создание записи о транзакции в бд со статусом PENDING...")
+        correlation_id = uuid.uuid4()
+        wallet_transaction = await self.crud.create(
+            session=session,
+            model=WalletTransaction,
+            user_id=int(user_id),
+            amount=amount,
+            operation_type=OperationType.DEPOSIT,
+            correlation_id=correlation_id,
+            idempotency_key=idempotency_key,
+            wallet_id=user_wallet_id,
+            status=TransactionStatus.PENDING,
+        )
+        logger.info(f"Запись создана")
+
+        logger.info(f"Кэширование idempotency_key...")
+        await self._cashed_idempotency(idempotency_key=idempotency_key)
+        logger.info(f"Кэширование успешно")
+
+        return {"redirect_url": redirect_url}
 
     # --- Вспомогательные методы ---
 
@@ -290,12 +334,46 @@ class WalletCore:
 
         return wallet[0].id
 
+    @staticmethod
+    async def _create_payment_stripe(amount: float, currency: ValuteCode) -> str:
+        """Создает платежное намерение в Stripe"""
+        logger.info(f"Создание ссылки на платеж через Stripe")
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": currency.value.lower(),
+                        "product_data": {
+                            "name": "Пополнение баланса",
+                        },
+                        "unit_amount": int(amount * 100),  # Переводим в центы/копейки
+                    },
+                    "quantity": 1,
+                }
+            ],
+            mode="payment",
+            success_url=settings.NOVAFIN_URL,
+            cancel_url=settings.NOVAFIN_URL,
+            metadata={},
+        )
+        logger.info(f"Ссылка создана")
+        return session.url  # URL для редиректа на страницу оплаты Stripe
+
     async def _cashed_idempotency(self, idempotency_key: str):
         await self.redis.setex(
             name=f"{settings.REDIS_KEY_IDEMPOTENCY}:{idempotency_key}",
             value="",
             time=24 * 3600,
         )
+
+    async def _process_success_payment(self, payment: dict):
+        """Обрабатывает успешный платеж"""
+        # Здесь логика обновления баланса, записи транзакции и т.д.
+        # print(f"Payment {payment.id} succeeded for {payment.amount}")
+        # Пример: отправка в Kafka
+        # await kafka_producer.send("payments", value=payment)
+        pass
 
     @staticmethod
     async def _send_to_kafka(

@@ -90,14 +90,11 @@ message CreatePaymentTransactionRequest {
   double amount = 2;           // Сумма пополнения
   string currency = 3;         // Валюта
   string gateway = 4;          // платежный шлюз
-  string external_id = 5;      // Внешний ID транзакции
+  string idempotency_key = 5;
 }
 
 message PaymentTransactionResponse {
-  string transaction_id = 1;   // ID транзакции
-  string status = 2;           // "PENDING"
-  string gateway_url = 3;      // URL для оплаты
-  string created_at = 4;       // Дата создания
+  string redirect_url = 1;
 }
 
 // ========== Common Types ========== //

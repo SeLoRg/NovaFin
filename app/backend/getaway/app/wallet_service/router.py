@@ -12,6 +12,7 @@ from getaway.Core.grpc_clients.wallet_grpc_client import wallet_grpc_client
 from getaway.app.logger import logger
 from getaway.exceptions.catch_errors import catch_errors
 from common.Metrics.metrics import func_work_time
+from fastapi.responses import RedirectResponse
 
 router = APIRouter()
 
@@ -119,6 +120,30 @@ async def convert_currency(
     )
 
 
+@router.post("/payment-transaction", response_model=PaymentTransactionResponse)
+async def create_payment_transaction(
+    request_data: CreatePaymentTransactionRequest,
+    wallet_grpc_stub: dependencies.WalletServiceStub,
+    user_id: dependencies.Bearer,
+):
+    """Создание транзакции для платежного шлюза"""
+    logger.info(f"--Создание транзакции для платежного шлюза--")
+    request_to_grpc = wallet_pb2.CreatePaymentTransactionRequest(
+        user_id=user_id,
+        currency=request_data.currency.value,
+        amount=request_data.amount,
+        gateway=request_data.gateway.value,
+        idempotency_key=request_data.idempotency_key,
+    )
+    response_from_grpc = await wallet_grpc_stub.CreatePaymentTransaction(
+        request=request_to_grpc
+    )
+    result = MessageToDict(response_from_grpc, preserving_proto_field_name=True)
+    logger.info(f"Ответ: {result}")
+
+    return PaymentTransactionResponse(redirect_url=result.get("redirect_url"))
+
+
 @router.post("/deposit", response_model=OperationResponse)
 async def deposit_funds(request: DepositRequest):
     """Пополнение кошелька"""
@@ -136,14 +161,4 @@ async def withdraw_funds(request: WithdrawRequest):
         operation_id=str(uuid.uuid4()),
         status=TransactionStatus.PROCESSED,
         timestamp=datetime.utcnow(),
-    )
-
-
-@router.post("/payment-transaction", response_model=PaymentTransactionResponse)
-async def create_payment_transaction(request: CreatePaymentTransactionRequest):
-    """Создание транзакции для платежного шлюза"""
-    return PaymentTransactionResponse(
-        transaction_id=str(uuid.uuid4()),
-        gateway_url=f"https://{request.gateway}.com/pay/{request.external_id}",
-        created_at=datetime.utcnow(),
     )

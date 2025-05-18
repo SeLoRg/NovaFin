@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from common.Enums import ValuteCode
+from common.Enums import ValuteCode, PaymentWorker
 from common.gRpc.wallet_service import wallet_pb2, wallet_pb2_grpc
 import grpc
 from google.protobuf.json_format import ParseDict
@@ -80,6 +80,27 @@ class WalletServiceServicer(wallet_pb2_grpc.WalletServiceServicer):
 
         return ParseDict(service_result, wallet_pb2.OperationResponse())
 
+    async def CreatePaymentTransaction(
+        self,
+        request: wallet_pb2.CreatePaymentTransactionRequest,
+        context: grpc.ServicerContext,
+    ):
+        """Создание транзакции на оплату через платежный шлюз"""
+        logger.info("-------Создание транзакции на оплату через платежный шлюз-------")
+
+        async with async_database_helper.session_factory() as session:
+            service_result: dict = await wallet_core.create_payment_transaction_url(
+                session=session,
+                user_id=request.user_id,
+                amount=request.amount,
+                currency=ValuteCode(request.currency),
+                gateway=PaymentWorker(request.gateway),
+                idempotency_key=request.idempotency_key,
+            )
+            await session.commit()
+
+        return ParseDict(service_result, wallet_pb2.PaymentTransactionResponse())
+
     def Deposit(self, request, context):
         """Пополнение кошелька"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -88,12 +109,6 @@ class WalletServiceServicer(wallet_pb2_grpc.WalletServiceServicer):
 
     def Withdraw(self, request, context):
         """Списание средств с кошелька"""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
-
-    def CreatePaymentTransaction(self, request, context):
-        """Создание транзакции на оплату через платежный шлюз"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")

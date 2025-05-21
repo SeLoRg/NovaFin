@@ -1,19 +1,18 @@
 import random
 from urllib.parse import urlencode
 import httpx
-from redis import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
-from common.Models import Users
-from common.Enums.AuthProvider import AuthProvider
-from common.schemas import BaseResponse
+from redis import Redis
+from celery_workers.notifications import tasks
 from auth.app.crud import users_crud
 from auth.app.crud.redis_sessions import redis_sessions_helper
 from auth.app import utils
-from celery_workers.notifications import tasks
 from auth.app.logger import logger
 from auth.exceptions.exceptions import UserAlreadyExists, WeakPassword
 from auth.Core.config import settings
 from common.Enums.AuthProvider import AuthProvider
+from common.Models import Users
+from common.schemas import BaseResponse
 
 
 async def register(login: str, password: str, session: AsyncSession) -> BaseResponse:

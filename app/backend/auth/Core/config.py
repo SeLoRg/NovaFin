@@ -1,10 +1,10 @@
 from pydantic_settings import SettingsConfigDict
-import os
-from common.Core.config import Postgres, Redis
+from common.Core.config import Postgres, Redis, Google
 from pathlib import Path
 
 
-class Settings(Postgres, Redis):
+class Settings(Postgres, Redis, Google):
+    NOVAFIN_URL: str
     jwt_private_key: Path = Path("auth/certs/jwt_private.pem")
     jwt_public_key: Path = Path("auth/certs/jwt_public.pem")
 
@@ -17,14 +17,7 @@ class Settings(Postgres, Redis):
     REDIS_SESSIONS_LIVE: int
     REDIS_KEY_OPT: str
 
-    GOOGLE_CLIENT_ID: str
-    GOOGLE_OAUTH_REDIRECT_URI: str
-    GOOGLE_CLIENT_SECRET: str
-    # GOOGLE_AUTH_URL: str
-    GOOGLE_TOKEN_URL: str
-    GOOGLE_USERINFO_URL: str
-
-    model_config = SettingsConfigDict()
+    model_config = SettingsConfigDict(extra="ignore")
 
 
 settings = Settings()

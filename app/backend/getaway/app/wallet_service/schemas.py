@@ -78,3 +78,19 @@ class CreatePaymentTransactionRequest(BaseModel):
 
 class PaymentTransactionResponse(BaseModel):
     redirect_url: str
+
+
+class StripeCallbackData(BaseModel):
+    id: str  # event_id
+    type: str  # event_type
+    livemode: bool
+    data: dict
+    request: dict
+
+    @property
+    def idempotency_key(self) -> str:
+        return self.request.get("idempotency_key", "")
+
+    @property
+    def payment_intent_data(self) -> dict:
+        return self.data.get("object", {})

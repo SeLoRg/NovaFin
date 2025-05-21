@@ -38,3 +38,24 @@ class SMTPMail(BaseSettings):
     SMTP_MAIL_SSL_TLS: str
 
     model_config = SettingsConfigDict()
+
+
+class PaymentStripe(BaseSettings):
+    STRIPE_PUBLIC_KEY: str
+    STRIPE_PRIVATE_KEY: str
+    STRIPE_WEBHOOK_SECRET: str
+
+    model_config = SettingsConfigDict(extra="ignore")
+
+
+class Google(BaseSettings):
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
+    GOOGLE_TOKEN_URL: str
+    GOOGLE_USERINFO_URL: str
+
+    @property
+    def GOOGLE_OAUTH_REDIRECT_URI(self):
+        return f"{self.NOVAFIN_URL}/api/auth/google/callback"
+
+    model_config = SettingsConfigDict(extra="ignore")

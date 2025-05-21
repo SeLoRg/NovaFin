@@ -1,6 +1,8 @@
 syntax = "proto3";
 
+
 package wallet;
+
 
 service WalletService {
   // Создание нового кошелька для пользователя
@@ -19,8 +21,9 @@ service WalletService {
 
   // Создание транзакции на оплату через платежный шлюз
   rpc CreatePaymentTransaction (CreatePaymentTransactionRequest) returns (PaymentTransactionResponse);
-  // Пополнение кошелька
-  rpc Deposit (DepositRequest) returns (OperationResponse);
+
+  // Callback от stripe
+  rpc HandleStripePayment (StripePaymentNotification) returns (WebhookResponse);
 }
 
 // ========== Request/Response Messages ========== //
@@ -58,13 +61,6 @@ message TransferRequest {
   string idempotency_key = 5;  // Ключ идемпотентности
 }
 
-message DepositRequest {
-  string user_id = 1;          // ID пользователя
-  double amount = 2;           // Сумма пополнения
-  string currency = 3;         // Валюта
-  string idempotency_key = 4;  // Ключ идемпотентности
-}
-
 message WithdrawRequest {
   string user_id = 1;          // ID пользователя
   double amount = 2;           // Сумма списания
@@ -97,15 +93,37 @@ message PaymentTransactionResponse {
   string redirect_url = 1;
 }
 
-// ========== Common Types ========== //
+message StripePaymentNotification {
+  // Идентификация события
+  string event_id = 1;                  // "evt_3RQaa9C1jcvqfRDJ15F0w4tv"
+  string event_type = 2;                // "payment_intent.succeeded"
+  bool livemode = 4;                    // false для тестового режима
 
-enum Currency {
-  RUB = 0;
-  USD = 1;
-  EUR = 2;
+  // Подпись вебхука (для верификации)
+
+  // Платежные данные
+  message PaymentIntent {
+    string id = 1;                      // "pi_3RQaa9C1jcvqfRDJ1HWG7Ku7"
+    int32 amount = 2;                   // 2000 (в центах/копейках)
+    string currency = 3;                // "usd"
+    string status = 4;                  // "succeeded"
+    map<string, string> metadata = 5;
+
+    // Доп. поля по необходимости
+    string payment_method = 7;          // "pm_1RQaa8C1jcvqfRDJDDpUO0ce"
+    string customer_email = 8;          // Опционально
+  }
+
+  PaymentIntent payment_intent = 5;
+
+  // Технические поля
+  string idempotency_key = 6;           // "b6ea909e-f968-472d-b477-3a9b973990c3"
+  string webhook_id = 7;                // Доп. идентификатор вебхука
 }
 
-enum AccountType {
-  FIAT = 0;
-  CRYPTO = 1;
+
+// Ответы
+message WebhookResponse {
+  bool success = 1;
+  string message = 2;
 }

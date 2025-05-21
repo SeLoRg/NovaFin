@@ -32,6 +32,7 @@ services:
     env_file:
       - app/backend/auth/.env
       - app/backend/celery_workers/notifications/.env
+      - app/backend/common/.env
     depends_on:
       - db
       - redis
@@ -41,24 +42,18 @@ services:
     build:
       context: app/backend
       dockerfile: ./wallet_worker/Dockerfile
-
     container_name: wallet_worker
     restart: on-failure
     env_file:
       - app/backend/wallet_worker/.env
       - .env
-
     ports:
       - "8083:8003"
-
-
     depends_on:
       kafka:
         condition: service_healthy
-
       db:
         condition: service_started
-
       redis:
         condition: service_started
 
@@ -67,17 +62,13 @@ services:
     build:
       context: app/backend
       dockerfile: ./wallet_service/Dockerfile
-
     container_name: wallet_service
     restart: on-failure
-
     ports:
       - "8084:8004"
-
     env_file:
       - app/backend/wallet_service/.env
-      - .env
-
+      - app/backend/common/.env
     depends_on:
       kafka:
         condition: service_healthy
@@ -86,19 +77,16 @@ services:
       db:
         condition: service_started
 
-
   getaway:
     image: getaway-service:1.0
     build:
       context: app/backend
       dockerfile: ./getaway/Dockerfile
-
     ports:
       - "8082:8000"
-
     env_file:
       - app/backend/getaway/.env
-
+      - app/backend/common/.env
     depends_on:
       - db
       - redis
@@ -110,7 +98,6 @@ services:
       dockerfile: ./celery_workers/notifications/Dockerfile
     env_file:
       - app/backend/celery_workers/notifications/.env
-
     depends_on:
       - redis
 
@@ -136,7 +123,6 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2182:2181"
-
     volumes:
       - zookeeper-data:/var/lib/zookeeper/data
       - zookeeper-log:/var/lib/zookeeper/log

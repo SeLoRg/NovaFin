@@ -1,10 +1,14 @@
+import stripe
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.responses import JSONResponse
 from typing import Optional, List
 from datetime import datetime
 import uuid
-from google.protobuf.json_format import MessageToDict
 
+from google.protobuf.internal.well_known_types import Timestamp
+from google.protobuf.json_format import MessageToDict, ParseDict
+
+from getaway.Core.config import settings
 from common.gRpc.wallet_service import wallet_pb2_grpc, wallet_pb2
 from getaway.app import dependencies
 from getaway.app.wallet_service.schemas import *
@@ -142,6 +146,67 @@ async def create_payment_transaction(
     logger.info(f"Ответ: {result}")
 
     return PaymentTransactionResponse(redirect_url=result.get("redirect_url"))
+
+
+@router.post("/callback/stripe", status_code=200)
+async def callback_stripe(
+    data: StripeCallbackData,
+    request: Request,
+    wallet_grpc_stub: dependencies.WalletServiceStub,
+):
+    try:
+        logger.info(f"--Callback от Stripe--")
+
+        # 1. Верификация подписи
+        signature = request.headers.get("stripe-signature")
+        if not stripe:
+            raise HTTPException(status_code=403, detail="Missing Stripe signature")
+
+        payload = await request.body()
+
+        try:
+            event = stripe.Webhook.construct_event(
+                payload, signature, settings.STRIPE_WEBHOOK_SECRET
+            )
+        except HTTPException as e:
+            logger.error(f"Stripe verification failed: {e.detail}")
+            raise
+
+        logger.info(f"Callback request: {data}")
+        # 2. Подготовка gRPC запроса
+        grpc_request = wallet_pb2.StripePaymentNotification(
+            event_id=data.id,
+            event_type=data.type,
+            livemode=data.livemode,
+            payment_intent=wallet_pb2.StripePaymentNotification.PaymentIntent(
+                id=data.payment_intent_data.get("id", ""),
+                amount=data.payment_intent_data.get("amount", 0),
+                currency=data.payment_intent_data.get("currency", ""),
+                status=data.payment_intent_data.get("status", ""),
+                metadata=data.payment_intent_data.get("metadata", {}),
+                payment_method=data.payment_intent_data.get("payment_method", ""),
+                customer_email=data.payment_intent_data.get("customer_email", ""),
+            ),
+            idempotency_key=data.idempotency_key,
+            webhook_id=f"wh_{data.id}",  # Генерация webhook_id если нужно
+        )
+        logger.debug(f"gRPC Request: {grpc_request}")
+        # 3. Вызов gRPC сервиса
+        grpc_response = await wallet_grpc_stub.HandleStripePayment(grpc_request)
+
+        # 4. Обработка ответа
+        if not grpc_response.success:
+            raise HTTPException(
+                status_code=503,
+                detail=grpc_response.message or "Payment processing failed",
+            )
+
+        return {"status": "OK", "message": grpc_response.message}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"Error processing callback: {str(e)}"
+        )
 
 
 @router.post("/deposit", response_model=OperationResponse)

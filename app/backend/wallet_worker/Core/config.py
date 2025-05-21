@@ -8,7 +8,7 @@ class Settings(Postgres, Redis):
     OUTPUT_TOPIC: str = "wallet.transaction.result"
     REDIS_KEY_IDEMPOTENCY: str
 
-    model_config = SettingsConfigDict()
+    model_config = SettingsConfigDict(extra="ignore")
 
 
 settings = Settings()

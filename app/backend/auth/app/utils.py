@@ -11,7 +11,6 @@ import jwt
 from auth.Core.config import settings
 from auth.app.crud.redis_sessions import redis_sessions_helper
 from auth.app.logger import logger
-from auth.app.schemas import Tokens
 from common.gRpc.auth import auth_pb2
 
 

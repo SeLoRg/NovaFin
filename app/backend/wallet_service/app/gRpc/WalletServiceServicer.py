@@ -1,9 +1,8 @@
 from decimal import Decimal
-
 from common.Enums import ValuteCode, PaymentWorker
 from common.gRpc.wallet_service import wallet_pb2, wallet_pb2_grpc
 import grpc
-from google.protobuf.json_format import ParseDict
+from google.protobuf.json_format import ParseDict, MessageToDict
 from wallet_service.Core.logger import logger
 from wallet_service.exceptions.catch_errors import catch_errors
 from wallet_service.app.services import wallet_core
@@ -101,11 +100,23 @@ class WalletServiceServicer(wallet_pb2_grpc.WalletServiceServicer):
 
         return ParseDict(service_result, wallet_pb2.PaymentTransactionResponse())
 
-    def Deposit(self, request, context):
-        """Пополнение кошелька"""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+    async def HandleStripePayment(
+        self,
+        request: wallet_pb2.StripePaymentNotification,
+        context: grpc.ServicerContext,
+    ):
+        """Обработка колбека от Stripe"""
+        logger.info("-------Обработка колбека от Stripe-------")
+
+        async with async_database_helper.session_factory() as session:
+            json_data = MessageToDict(request, preserving_proto_field_name=True)
+            logger.info(f"json_data: {json_data}")
+            service_result: dict = await wallet_core.handle_callback(
+                session=session, gateway=PaymentWorker.STRIPE, data=json_data
+            )
+            await session.commit()
+
+        return ParseDict(service_result, wallet_pb2.WebhookResponse())
 
     def Withdraw(self, request, context):
         """Списание средств с кошелька"""

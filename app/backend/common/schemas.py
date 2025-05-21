@@ -1,10 +1,6 @@
-from uuid import UUID
-
 from pydantic import BaseModel, Field, model_validator
 from typing import Literal, Any, Optional, Dict
 from common.Enums.OperationType import OperationType
-from common.Enums.AccountOperation import AccountOperation
-from common.Enums.TransactionStatus import TransactionStatus
 from common.Enums.ValuteCode import ValuteCode
 
 
@@ -12,57 +8,6 @@ class BaseResponse(BaseModel):
     status: Literal["success", "error"]
     message: str
     detail: dict[str, Any] = Field(default_factory=dict)
-
-
-class FiatAccountRequest(BaseModel):
-    operation: AccountOperation = Field(
-        ..., description="Тип операции над fiat кошельком"
-    )
-    user_id: Optional[int] = Field(
-        None, description="id пользователя кому принадлежит кошелек"
-    )
-    wallet_id: Optional[int] = Field(None, description="id кошелька для удаления")
-
-    @model_validator(mode="after")
-    def check_required_fields(self):
-        if self.operation == AccountOperation.create:
-            if not self.user_id:
-                raise ValueError(
-                    "Для создания фиат кошеька необходимо указать 'user_id'."
-                )
-
-        elif self.operation == AccountOperation.delete:
-            if not self.wallet_id:
-                raise ValueError(
-                    "Для удаления фиат кошелька необходимо указать 'wallet_id'."
-                )
-
-        return self
-
-
-class ProcessedTransaction(BaseModel):
-    """Результат обработки транзакции"""
-
-    correlation_id: UUID
-    status: TransactionStatus
-    error: Optional[str] = None
-    tx_hash: Optional[str] = None  # Для крипто-операций
-    metadata: Optional[Dict[str, Any]] = None
-
-    def to_dict(self):
-        data = {
-            "correlation_id": self.correlation_id,
-            "status": self.status.value,
-        }
-
-        if self.error is not None:
-            data["error"] = self.error
-        if self.tx_hash is not None:
-            data["tx_hash"] = self.tx_hash
-        if self.metadata is not None:
-            data["metadata"] = self.metadata
-
-        return data
 
 
 class WalletTransactionResult(BaseModel):

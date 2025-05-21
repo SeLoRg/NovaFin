@@ -24,17 +24,15 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1bwallet_service/wallet.proto\x12\x06wallet\"&\n\x13\x43reateWalletRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\"7\n\x0eWalletResponse\x12\x11\n\twallet_id\x18\x01 \x01(\t\x12\x12\n\ncreated_at\x18\x02 \x01(\t\"H\n\x11GetBalanceRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x15\n\x08\x63urrency\x18\x02 \x01(\tH\x00\x88\x01\x01\x42\x0b\n\t_currency\"\x9a\x01\n\x0f\x42\x61lanceResponse\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x36\n\x08\x62\x61lances\x18\x02 \x03(\x0b\x32$.wallet.BalanceResponse.BalanceEntry\x1a>\n\x0c\x42\x61lanceEntry\x12\x10\n\x08\x63urrency\x18\x01 \x01(\t\x12\x0e\n\x06\x61mount\x18\x02 \x01(\x01\x12\x0c\n\x04type\x18\x03 \x01(\t\"v\n\x0fTransferRequest\x12\x14\n\x0c\x66rom_user_id\x18\x01 \x01(\t\x12\x12\n\nto_user_id\x18\x02 \x01(\t\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x01\x12\x10\n\x08\x63urrency\x18\x04 \x01(\t\x12\x17\n\x0fidempotency_key\x18\x05 \x01(\t\"\\\n\x0e\x44\x65positRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x0e\n\x06\x61mount\x18\x02 \x01(\x01\x12\x10\n\x08\x63urrency\x18\x03 \x01(\t\x12\x17\n\x0fidempotency_key\x18\x04 \x01(\t\"]\n\x0fWithdrawRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x0e\n\x06\x61mount\x18\x02 \x01(\x01\x12\x10\n\x08\x63urrency\x18\x03 \x01(\t\x12\x17\n\x0fidempotency_key\x18\x04 \x01(\t\"v\n\x0e\x43onvertRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x15\n\rfrom_currency\x18\x02 \x01(\t\x12\x13\n\x0bto_currency\x18\x03 \x01(\t\x12\x0e\n\x06\x61mount\x18\x04 \x01(\x01\x12\x17\n\x0fidempotency_key\x18\x05 \x01(\t\";\n\x11OperationResponse\x12\x16\n\x0e\x63orrelation_id\x18\x01 \x01(\t\x12\x0e\n\x06status\x18\x02 \x01(\t\"~\n\x1f\x43reatePaymentTransactionRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x0e\n\x06\x61mount\x18\x02 \x01(\x01\x12\x10\n\x08\x63urrency\x18\x03 \x01(\t\x12\x0f\n\x07gateway\x18\x04 \x01(\t\x12\x17\n\x0fidempotency_key\x18\x05 \x01(\t\"2\n\x1aPaymentTransactionResponse\x12\x14\n\x0credirect_url\x18\x01 \x01(\t*%\n\x08\x43urrency\x12\x07\n\x03RUB\x10\x00\x12\x07\n\x03USD\x10\x01\x12\x07\n\x03\x45UR\x10\x02*#\n\x0b\x41\x63\x63ountType\x12\x08\n\x04\x46IAT\x10\x00\x12\n\n\x06\x43RYPTO\x10\x01\x32\xfb\x03\n\rWalletService\x12\x43\n\x0c\x43reateWallet\x12\x1b.wallet.CreateWalletRequest\x1a\x16.wallet.WalletResponse\x12@\n\nGetBalance\x12\x19.wallet.GetBalanceRequest\x1a\x17.wallet.BalanceResponse\x12>\n\x08Transfer\x12\x17.wallet.TransferRequest\x1a\x19.wallet.OperationResponse\x12<\n\x07\x43onvert\x12\x16.wallet.ConvertRequest\x1a\x19.wallet.OperationResponse\x12>\n\x08Withdraw\x12\x17.wallet.WithdrawRequest\x1a\x19.wallet.OperationResponse\x12g\n\x18\x43reatePaymentTransaction\x12\'.wallet.CreatePaymentTransactionRequest\x1a\".wallet.PaymentTransactionResponse\x12<\n\x07\x44\x65posit\x12\x16.wallet.DepositRequest\x1a\x19.wallet.OperationResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1bwallet_service/wallet.proto\x12\x06wallet\"&\n\x13\x43reateWalletRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\"7\n\x0eWalletResponse\x12\x11\n\twallet_id\x18\x01 \x01(\t\x12\x12\n\ncreated_at\x18\x02 \x01(\t\"H\n\x11GetBalanceRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x15\n\x08\x63urrency\x18\x02 \x01(\tH\x00\x88\x01\x01\x42\x0b\n\t_currency\"\x9a\x01\n\x0f\x42\x61lanceResponse\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x36\n\x08\x62\x61lances\x18\x02 \x03(\x0b\x32$.wallet.BalanceResponse.BalanceEntry\x1a>\n\x0c\x42\x61lanceEntry\x12\x10\n\x08\x63urrency\x18\x01 \x01(\t\x12\x0e\n\x06\x61mount\x18\x02 \x01(\x01\x12\x0c\n\x04type\x18\x03 \x01(\t\"v\n\x0fTransferRequest\x12\x14\n\x0c\x66rom_user_id\x18\x01 \x01(\t\x12\x12\n\nto_user_id\x18\x02 \x01(\t\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x01\x12\x10\n\x08\x63urrency\x18\x04 \x01(\t\x12\x17\n\x0fidempotency_key\x18\x05 \x01(\t\"]\n\x0fWithdrawRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x0e\n\x06\x61mount\x18\x02 \x01(\x01\x12\x10\n\x08\x63urrency\x18\x03 \x01(\t\x12\x17\n\x0fidempotency_key\x18\x04 \x01(\t\"v\n\x0e\x43onvertRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x15\n\rfrom_currency\x18\x02 \x01(\t\x12\x13\n\x0bto_currency\x18\x03 \x01(\t\x12\x0e\n\x06\x61mount\x18\x04 \x01(\x01\x12\x17\n\x0fidempotency_key\x18\x05 \x01(\t\";\n\x11OperationResponse\x12\x16\n\x0e\x63orrelation_id\x18\x01 \x01(\t\x12\x0e\n\x06status\x18\x02 \x01(\t\"~\n\x1f\x43reatePaymentTransactionRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x0e\n\x06\x61mount\x18\x02 \x01(\x01\x12\x10\n\x08\x63urrency\x18\x03 \x01(\t\x12\x0f\n\x07gateway\x18\x04 \x01(\t\x12\x17\n\x0fidempotency_key\x18\x05 \x01(\t\"2\n\x1aPaymentTransactionResponse\x12\x14\n\x0credirect_url\x18\x01 \x01(\t\"\xcb\x03\n\x19StripePaymentNotification\x12\x10\n\x08\x65vent_id\x18\x01 \x01(\t\x12\x12\n\nevent_type\x18\x02 \x01(\t\x12\x10\n\x08livemode\x18\x04 \x01(\x08\x12G\n\x0epayment_intent\x18\x05 \x01(\x0b\x32/.wallet.StripePaymentNotification.PaymentIntent\x12\x17\n\x0fidempotency_key\x18\x06 \x01(\t\x12\x12\n\nwebhook_id\x18\x07 \x01(\t\x1a\xff\x01\n\rPaymentIntent\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0e\n\x06\x61mount\x18\x02 \x01(\x05\x12\x10\n\x08\x63urrency\x18\x03 \x01(\t\x12\x0e\n\x06status\x18\x04 \x01(\t\x12O\n\x08metadata\x18\x05 \x03(\x0b\x32=.wallet.StripePaymentNotification.PaymentIntent.MetadataEntry\x12\x16\n\x0epayment_method\x18\x07 \x01(\t\x12\x16\n\x0e\x63ustomer_email\x18\x08 \x01(\t\x1a/\n\rMetadataEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"3\n\x0fWebhookResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t2\x90\x04\n\rWalletService\x12\x43\n\x0c\x43reateWallet\x12\x1b.wallet.CreateWalletRequest\x1a\x16.wallet.WalletResponse\x12@\n\nGetBalance\x12\x19.wallet.GetBalanceRequest\x1a\x17.wallet.BalanceResponse\x12>\n\x08Transfer\x12\x17.wallet.TransferRequest\x1a\x19.wallet.OperationResponse\x12<\n\x07\x43onvert\x12\x16.wallet.ConvertRequest\x1a\x19.wallet.OperationResponse\x12>\n\x08Withdraw\x12\x17.wallet.WithdrawRequest\x1a\x19.wallet.OperationResponse\x12g\n\x18\x43reatePaymentTransaction\x12\'.wallet.CreatePaymentTransactionRequest\x1a\".wallet.PaymentTransactionResponse\x12Q\n\x13HandleStripePayment\x12!.wallet.StripePaymentNotification\x1a\x17.wallet.WebhookResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'wallet_service.wallet_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_CURRENCY']._serialized_start=1037
-  _globals['_CURRENCY']._serialized_end=1074
-  _globals['_ACCOUNTTYPE']._serialized_start=1076
-  _globals['_ACCOUNTTYPE']._serialized_end=1111
+  _globals['_STRIPEPAYMENTNOTIFICATION_PAYMENTINTENT_METADATAENTRY']._loaded_options = None
+  _globals['_STRIPEPAYMENTNOTIFICATION_PAYMENTINTENT_METADATAENTRY']._serialized_options = b'8\001'
   _globals['_CREATEWALLETREQUEST']._serialized_start=39
   _globals['_CREATEWALLETREQUEST']._serialized_end=77
   _globals['_WALLETRESPONSE']._serialized_start=79
@@ -47,18 +45,24 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_BALANCERESPONSE_BALANCEENTRY']._serialized_end=365
   _globals['_TRANSFERREQUEST']._serialized_start=367
   _globals['_TRANSFERREQUEST']._serialized_end=485
-  _globals['_DEPOSITREQUEST']._serialized_start=487
-  _globals['_DEPOSITREQUEST']._serialized_end=579
-  _globals['_WITHDRAWREQUEST']._serialized_start=581
-  _globals['_WITHDRAWREQUEST']._serialized_end=674
-  _globals['_CONVERTREQUEST']._serialized_start=676
-  _globals['_CONVERTREQUEST']._serialized_end=794
-  _globals['_OPERATIONRESPONSE']._serialized_start=796
-  _globals['_OPERATIONRESPONSE']._serialized_end=855
-  _globals['_CREATEPAYMENTTRANSACTIONREQUEST']._serialized_start=857
-  _globals['_CREATEPAYMENTTRANSACTIONREQUEST']._serialized_end=983
-  _globals['_PAYMENTTRANSACTIONRESPONSE']._serialized_start=985
-  _globals['_PAYMENTTRANSACTIONRESPONSE']._serialized_end=1035
-  _globals['_WALLETSERVICE']._serialized_start=1114
-  _globals['_WALLETSERVICE']._serialized_end=1621
+  _globals['_WITHDRAWREQUEST']._serialized_start=487
+  _globals['_WITHDRAWREQUEST']._serialized_end=580
+  _globals['_CONVERTREQUEST']._serialized_start=582
+  _globals['_CONVERTREQUEST']._serialized_end=700
+  _globals['_OPERATIONRESPONSE']._serialized_start=702
+  _globals['_OPERATIONRESPONSE']._serialized_end=761
+  _globals['_CREATEPAYMENTTRANSACTIONREQUEST']._serialized_start=763
+  _globals['_CREATEPAYMENTTRANSACTIONREQUEST']._serialized_end=889
+  _globals['_PAYMENTTRANSACTIONRESPONSE']._serialized_start=891
+  _globals['_PAYMENTTRANSACTIONRESPONSE']._serialized_end=941
+  _globals['_STRIPEPAYMENTNOTIFICATION']._serialized_start=944
+  _globals['_STRIPEPAYMENTNOTIFICATION']._serialized_end=1403
+  _globals['_STRIPEPAYMENTNOTIFICATION_PAYMENTINTENT']._serialized_start=1148
+  _globals['_STRIPEPAYMENTNOTIFICATION_PAYMENTINTENT']._serialized_end=1403
+  _globals['_STRIPEPAYMENTNOTIFICATION_PAYMENTINTENT_METADATAENTRY']._serialized_start=1356
+  _globals['_STRIPEPAYMENTNOTIFICATION_PAYMENTINTENT_METADATAENTRY']._serialized_end=1403
+  _globals['_WEBHOOKRESPONSE']._serialized_start=1405
+  _globals['_WEBHOOKRESPONSE']._serialized_end=1456
+  _globals['_WALLETSERVICE']._serialized_start=1459
+  _globals['_WALLETSERVICE']._serialized_end=1987
 # @@protoc_insertion_point(module_scope)

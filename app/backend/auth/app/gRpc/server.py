@@ -1,7 +1,4 @@
-import json
-
 import grpc
-
 from common.schemas import BaseResponse
 from common.gRpc.auth import auth_pb2, auth_pb2_grpc
 from auth.exceptions.catch_errors import catch_errors

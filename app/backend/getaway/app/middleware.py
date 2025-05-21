@@ -13,9 +13,6 @@ class CookieMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)  # Сначала выполняем эндпоинт
         logger.info(f"--Middleware after--")
 
-        if hasattr(request.state, "error_occurred"):
-            return response
-
         if hasattr(request.state, "new_tokens"):
             logger.info(f"Устанавливаем куки...")
             response.set_cookie(

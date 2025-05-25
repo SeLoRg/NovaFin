@@ -10,8 +10,6 @@ async def grpc_exception_handler(
 ) -> JSONResponse:
     logger.error(f"grpcError: {exc.details()}")
 
-    request.state.error_occurred = True
-
     status_code = 503  # Service Unavailable
     if exc.code() == grpc.StatusCode.UNAUTHENTICATED:
         status_code = 401
@@ -29,7 +27,6 @@ async def grpc_exception_handler(
 
 async def base_exception(request: Request, exc: Exception):
     logger.error(f"Error: {str(exc)}")
-    request.state.error_occurred = True
     return JSONResponse(
         status_code=503,
         content={
@@ -41,7 +38,6 @@ async def base_exception(request: Request, exc: Exception):
 
 async def httpexception_handler(request: Request, exc: HTTPException):
     logger.error(f"Error: {exc.detail}")
-    request.state.error_occurred = True
     return JSONResponse(
         status_code=exc.status_code,
         content={

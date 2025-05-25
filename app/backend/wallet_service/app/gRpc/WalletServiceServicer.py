@@ -100,6 +100,23 @@ class WalletServiceServicer(wallet_pb2_grpc.WalletServiceServicer):
 
         return ParseDict(service_result, wallet_pb2.PaymentTransactionResponse())
 
+    async def ConnectAccountStripe(
+        self,
+        request: wallet_pb2.ConnectAccountStripeRequest,
+        context: grpc.ServicerContext,
+    ):
+        """Подключение аккаунта Stripe"""
+        logger.info("-------Подключение аккаунта Stripe-------")
+
+        async with async_database_helper.session_factory() as session:
+            service_result: dict = await wallet_core.connect_account_stripe(
+                session=session,
+                user_id=request.user_id,
+            )
+            await session.commit()
+
+        return ParseDict(service_result, wallet_pb2.PaymentTransactionResponse())
+
     async def HandleStripePayment(
         self,
         request: wallet_pb2.StripePaymentNotification,

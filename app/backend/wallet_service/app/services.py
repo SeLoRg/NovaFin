@@ -7,7 +7,7 @@ from redis import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.Enums import TransactionStatus, OperationType, PaymentWorker
-from common.Models import WalletAccount, WalletTransaction
+from common.Models import WalletAccount, WalletTransaction, StripeAccounts, Users
 from common.crud.CrudDb import CRUD
 from common.Enums.ValuteCode import ValuteCode
 from common.Models.Wallet import Wallet
@@ -290,6 +290,112 @@ class WalletCore:
 
         return {"redirect_url": redirect_url}
 
+    async def create_payout_transaction_url(
+        self,
+        session: AsyncSession,
+        user_id: str,
+        amount: float,
+        idempotency_key: str,
+        currency: ValuteCode,
+        gateway: PaymentWorker,
+    ) -> dict:
+        """Создание транзакции для платежного шлюза"""
+        logger.info(f"--Создание транзакции на выплату через платежный шлюз--")
+
+        logger.info(f"Проверка идемпотентности...")
+        if await self._check_idempotency(idempotency_key):
+            raise ValueError(
+                f"Операция с idempotency_key={idempotency_key} уже обработана"
+            )
+
+        logger.info(f"Получение кошелька пользователя id={user_id}...")
+        user_wallet_id: int = await self._get_wallet_id(
+            session=session, user_id=int(user_id)
+        )
+        logger.info(f"Кошелек получен")
+
+        logger.info(f"Создание записи о транзакции в бд со статусом PENDING...")
+        correlation_id = uuid.uuid4()
+        wallet_transaction = await self.crud.create(
+            session=session,
+            model=WalletTransaction,
+            user_id=int(user_id),
+            amount=amount,
+            operation_type=OperationType.WITHDRAW,
+            correlation_id=correlation_id,
+            currency=currency,
+            idempotency_key=idempotency_key,
+            wallet_id=user_wallet_id,
+            status=TransactionStatus.PENDING,
+        )
+        logger.info(f"Запись создана")
+
+        logger.info(
+            f"Выбор метода создания в зависимоти от платежного шлюза({gateway.value})..."
+        )
+        handlers = {f"{PaymentWorker.STRIPE.value}": self._create_payout_stripe}
+        redirect_url: str = await handlers[gateway.value](
+            amount=amount,
+            currency=currency,
+            wallet_id=user_wallet_id,
+            transaction_id=wallet_transaction.id,
+        )
+
+        logger.info(f"Кэширование idempotency_key...")
+        await self._cashed_idempotency(idempotency_key=idempotency_key)
+        logger.info(f"Кэширование успешно")
+
+        return {"redirect_url": redirect_url}
+
+    async def connect_account_stripe(
+        self,
+        user_id: str,
+        session: AsyncSession,
+    ) -> dict:
+        logger.info(f"Поиск созданного аккаунта в Stripe")
+        stripe_accounts: list[StripeAccounts] = await self.crud.get_by_filter(
+            session=session, model=StripeAccounts, user_id=int(user_id)
+        )
+        if len(stripe_accounts) != 0:
+            account_id = stripe_accounts[0].stripe_account_id
+            logger.info(f"Аккаунт найден id={account_id}")
+        else:
+            logger.info(f"Аккаунт не найден\nПоиск пользователя")
+
+            user = await self.crud.get_by_filter(
+                session=session, model=Users, id=int(user_id)
+            )
+            user = user.pop()
+            logger.info(f"Пользователь найден")
+            logger.info(f"Создание аккаунта для пользователя в stripe")
+            account: stripe.Account = stripe.Account.create(
+                type="express",
+                email=user.login,
+                capabilities={"transfers": {"requested": True}},
+                settings={
+                    "payouts": {"schedule": {"interval": "manual"}}
+                },  # ручные выплатЫ
+            )
+            account_id = account.id
+            new_stripe_account = await self.crud.create(
+                session=session,
+                model=StripeAccounts,
+                user_id=int(user_id),
+                stripe_account_id=account_id,
+            )
+            logger.info(f"Аккаунт создан")
+
+        # Ссылка на Stripe‑hosted форму, где пользователь введёт банковские реквизиты
+        logger.info(f"Создание ссылкаи на Stripe‑hosted форму")
+        link: stripe.AccountLink = stripe.AccountLink.create(
+            account=account_id,
+            type="account_onboarding",
+            refresh_url=f"{settings.NOVAFIN_URL}",
+            return_url=f"{settings.NOVAFIN_URL}",
+        )
+        logger.info(f"Ссылка создана")
+        return {"redirect_url": link.url}
+
     async def handle_callback(
         self, session: AsyncSession, gateway: PaymentWorker, data: dict
     ):
@@ -391,6 +497,40 @@ class WalletCore:
                 }
             ],
             mode="payment",
+            success_url=settings.NOVAFIN_URL,
+            cancel_url=settings.NOVAFIN_URL,
+            metadata={"wallet_id": wallet_id, "transaction_id": transaction_id},
+            payment_intent_data={
+                "metadata": {
+                    "wallet_id": wallet_id,
+                    "transaction_id": transaction_id,
+                }
+            },
+        )
+        logger.info(f"Ссылка создана")
+        return session.url  # URL для редиректа на страницу оплаты Stripe
+
+    @staticmethod
+    async def _create_payout_stripe(
+        amount: float, currency: ValuteCode, wallet_id: int, transaction_id: int
+    ) -> str:
+        """Создает платежное намерение в Stripe"""
+        logger.info(f"Создание ссылки на платеж через Stripe")
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": currency.value.lower(),
+                        "product_data": {
+                            "name": "Пополнение баланса",
+                        },
+                        "unit_amount": int(amount * 100),  # Переводим в центы/копейки
+                    },
+                    "quantity": 1,
+                }
+            ],
+            mode="payout",
             success_url=settings.NOVAFIN_URL,
             cancel_url=settings.NOVAFIN_URL,
             metadata={"wallet_id": wallet_id, "transaction_id": transaction_id},

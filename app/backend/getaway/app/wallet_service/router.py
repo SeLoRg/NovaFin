@@ -11,6 +11,7 @@ from google.protobuf.json_format import MessageToDict, ParseDict
 from getaway.Core.config import settings
 from common.gRpc.wallet_service import wallet_pb2_grpc, wallet_pb2
 from getaway.app import dependencies
+from getaway.app.wallet_service import services
 from getaway.app.wallet_service.schemas import *
 from getaway.Core.grpc_clients.wallet_grpc_client import wallet_grpc_client
 from getaway.app.logger import logger
@@ -146,6 +147,27 @@ async def create_payment_transaction(
     logger.info(f"Ответ: {result}")
 
     return PaymentTransactionResponse(redirect_url=result.get("redirect_url"))
+
+
+@router.post("/payout-transaction/stripe", response_model=PaymentTransactionResponse)
+async def create_payout_transaction(
+    request_data: CreatePayoutTransactionRequest,
+    wallet_grpc_stub: dependencies.WalletServiceStub,
+    user_id: dependencies.Bearer,
+):
+    return services.create_payout_transaction(
+        request_data=request_data, wallet_grpc_stub=wallet_grpc_stub, user_id=user_id
+    )
+
+
+@router.get("/stripe/connect-account", response_model=PaymentTransactionResponse)
+async def stripe_connect_account(
+    wallet_grpc_stub: dependencies.WalletServiceStub,
+    user_id: dependencies.Bearer,
+):
+    return await services.stripe_connect_account(
+        wallet_grpc_stub=wallet_grpc_stub, user_id=user_id
+    )
 
 
 @router.post("/callback/stripe", status_code=200)

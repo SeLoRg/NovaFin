@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from common.Enums import ValuteCode, PaymentWorker, TransactionStatus, WalletAccountType
 from common.schemas import BaseResponse
 
@@ -74,6 +74,12 @@ class CreatePaymentTransactionRequest(BaseModel):
     currency: ValuteCode
     gateway: PaymentWorker
     idempotency_key: str
+
+
+class CreatePayoutTransactionRequest(BaseModel):
+    amount: float
+    idempotency_key: str
+    currency: ValuteCode = ValuteCode.USD
 
 
 class PaymentTransactionResponse(BaseModel):

@@ -22,6 +22,12 @@ service WalletService {
   // Создание транзакции на оплату через платежный шлюз
   rpc CreatePaymentTransaction (CreatePaymentTransactionRequest) returns (PaymentTransactionResponse);
 
+  // Создание выплаты через платежный шлюз
+  rpc CreatePayoutTransaction (CreatePaymentTransactionRequest) returns (PaymentTransactionResponse);
+
+  // Создание/получение аккаунта в stripe
+  rpc ConnectAccountStripe (ConnectAccountStripeRequest) returns (PaymentTransactionResponse);
+
   // Callback от stripe
   rpc HandleStripePayment (StripePaymentNotification) returns (WebhookResponse);
 }
@@ -88,6 +94,11 @@ message CreatePaymentTransactionRequest {
   string gateway = 4;          // платежный шлюз
   string idempotency_key = 5;
 }
+
+message ConnectAccountStripeRequest {
+  string user_id = 1;
+}
+
 
 message PaymentTransactionResponse {
   string redirect_url = 1;

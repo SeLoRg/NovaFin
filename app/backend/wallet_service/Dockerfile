@@ -17,5 +17,6 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 
 COPY common ./common
 COPY wallet_service ./wallet_service
+COPY celery_workers/background_tasks ./celery_workers/background_tasks
 
 CMD ["python", "-m", "wallet_service.main"]

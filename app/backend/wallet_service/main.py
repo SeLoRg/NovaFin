@@ -1,6 +1,7 @@
 import asyncio
 
-from wallet_service.app.gRpc.server import serve
+from wallet_service.app.gRpc.server import Service
 
 if __name__ == "__main__":
-    asyncio.run(serve())
+    service = Service()
+    asyncio.run(service.serve())

@@ -76,6 +76,8 @@ services:
         condition: service_started
       db:
         condition: service_started
+      background_tasks:
+        condition: service_started
 
   getaway:
     image: getaway-service:1.0
@@ -100,6 +102,20 @@ services:
       - app/backend/celery_workers/notifications/.env
     depends_on:
       - redis
+
+  background_tasks:
+    image: celery-background_tasks:1.0
+    build:
+      context: app/backend
+      dockerfile: ./celery_workers/background_tasks/Dockerfile
+    env_file:
+      - app/backend/common/.env
+    depends_on:
+      redis:
+        condition: service_started
+      db:
+        condition: service_healthy
+
 
   alembic_service:
     image: alembic_service:1.0

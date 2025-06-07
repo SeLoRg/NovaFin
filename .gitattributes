@@ -1,3 +1,17 @@
 *.pb2.py text eol=lf
 *.pb2_grpc.py text eol=lf
 *.proto text eol=lf
+
+# Установить LF для всех текстовых файлов
+* text=auto
+
+# Явно указать LF для определенных типов
+*.py text eol=lf
+*.proto text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+
+# Бинарные файлы
+*.png binary
+*.jpg binary
+*.gz binary

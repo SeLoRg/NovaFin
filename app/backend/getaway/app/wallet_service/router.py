@@ -1,11 +1,5 @@
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
-from fastapi.responses import JSONResponse
-from typing import Optional, List
-from datetime import datetime
-import uuid
-
-from google.protobuf.internal.well_known_types import Timestamp
 from google.protobuf.json_format import MessageToDict, ParseDict
 
 from getaway.Core.config import settings
@@ -24,6 +18,7 @@ router = APIRouter()
 
 # Роуты
 @router.post("/create", response_model=WalletResponse)
+@catch_errors(logger=logger)
 async def create_wallet(
     user_id: str = Depends(dependencies.bearer),
     wallet_grpc_stub: wallet_pb2_grpc.WalletServiceStub | None = Depends(
@@ -44,6 +39,7 @@ async def create_wallet(
 
 
 @router.get("/balance", response_model=BalanceResponse)
+@catch_errors(logger=logger)
 @func_work_time(logger=logger)
 async def get_balance(
     currency: Optional[ValuteCode] = None,
@@ -71,6 +67,7 @@ async def get_balance(
 
 
 @router.post("/transfer", response_model=OperationResponse)
+@catch_errors(logger=logger)
 async def transfer_funds(
     request_data: TransferRequest,
     user_id: str = Depends(dependencies.bearer),
@@ -100,6 +97,7 @@ async def transfer_funds(
 
 
 @router.post("/convert", response_model=OperationResponse)
+@catch_errors(logger=logger)
 async def convert_currency(
     request_data: ConvertRequest,
     wallet_grpc_stub: dependencies.WalletServiceStub,
@@ -126,6 +124,7 @@ async def convert_currency(
 
 
 @router.post("/payment-transaction", response_model=PaymentTransactionResponse)
+@catch_errors(logger=logger)
 async def create_payment_transaction(
     request_data: CreatePaymentTransactionRequest,
     wallet_grpc_stub: dependencies.WalletServiceStub,
@@ -149,18 +148,20 @@ async def create_payment_transaction(
     return PaymentTransactionResponse(redirect_url=result.get("redirect_url"))
 
 
-@router.post("/payout-transaction/stripe", response_model=PaymentTransactionResponse)
-async def create_payout_transaction(
-    request_data: CreatePayoutTransactionRequest,
+@router.post("/stripe/withdraw", response_model=OperationResponse)
+@catch_errors(logger=logger)
+async def stripe_withdraw(
+    request_data: StripeWithdrawRequest,
     wallet_grpc_stub: dependencies.WalletServiceStub,
     user_id: dependencies.Bearer,
 ):
-    return services.create_payout_transaction(
+    return await services.stripe_withdraw(
         request_data=request_data, wallet_grpc_stub=wallet_grpc_stub, user_id=user_id
     )
 
 
 @router.get("/stripe/connect-account", response_model=PaymentTransactionResponse)
+@catch_errors(logger=logger)
 async def stripe_connect_account(
     wallet_grpc_stub: dependencies.WalletServiceStub,
     user_id: dependencies.Bearer,
@@ -170,82 +171,25 @@ async def stripe_connect_account(
     )
 
 
-@router.post("/callback/stripe", status_code=200)
-async def callback_stripe(
+@router.post("/stripe/callback/payment", status_code=200)
+@catch_errors(logger=logger)
+async def stripe_callback_payment(
     data: StripeCallbackData,
     request: Request,
     wallet_grpc_stub: dependencies.WalletServiceStub,
 ):
-    try:
-        logger.info(f"--Callback от Stripe--")
-
-        # 1. Верификация подписи
-        signature = request.headers.get("stripe-signature")
-        if not stripe:
-            raise HTTPException(status_code=403, detail="Missing Stripe signature")
-
-        payload = await request.body()
-
-        try:
-            event = stripe.Webhook.construct_event(
-                payload, signature, settings.STRIPE_WEBHOOK_SECRET
-            )
-        except HTTPException as e:
-            logger.error(f"Stripe verification failed: {e.detail}")
-            raise
-
-        logger.info(f"Callback request: {data}")
-        # 2. Подготовка gRPC запроса
-        grpc_request = wallet_pb2.StripePaymentNotification(
-            event_id=data.id,
-            event_type=data.type,
-            livemode=data.livemode,
-            payment_intent=wallet_pb2.StripePaymentNotification.PaymentIntent(
-                id=data.payment_intent_data.get("id", ""),
-                amount=data.payment_intent_data.get("amount", 0),
-                currency=data.payment_intent_data.get("currency", ""),
-                status=data.payment_intent_data.get("status", ""),
-                metadata=data.payment_intent_data.get("metadata", {}),
-                payment_method=data.payment_intent_data.get("payment_method", ""),
-                customer_email=data.payment_intent_data.get("customer_email", ""),
-            ),
-            idempotency_key=data.idempotency_key,
-            webhook_id=f"wh_{data.id}",  # Генерация webhook_id если нужно
-        )
-        logger.debug(f"gRPC Request: {grpc_request}")
-        # 3. Вызов gRPC сервиса
-        grpc_response = await wallet_grpc_stub.HandleStripePayment(grpc_request)
-
-        # 4. Обработка ответа
-        if not grpc_response.success:
-            raise HTTPException(
-                status_code=503,
-                detail=grpc_response.message or "Payment processing failed",
-            )
-
-        return {"status": "OK", "message": grpc_response.message}
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=400, detail=f"Error processing callback: {str(e)}"
-        )
-
-
-@router.post("/deposit", response_model=OperationResponse)
-async def deposit_funds(request: DepositRequest):
-    """Пополнение кошелька"""
-    return OperationResponse(
-        operation_id=str(uuid.uuid4()),
-        status=TransactionStatus.PROCESSED,
-        timestamp=datetime.utcnow(),
+    return await services.stripe_callback_payment(
+        data=data, request=request, wallet_grpc_stub=wallet_grpc_stub
     )
 
 
-@router.post("/withdraw", response_model=OperationResponse)
-async def withdraw_funds(request: WithdrawRequest):
-    """Списание средств с кошелька"""
-    return OperationResponse(
-        operation_id=str(uuid.uuid4()),
-        status=TransactionStatus.PROCESSED,
-        timestamp=datetime.utcnow(),
+@router.post("/stripe/callback/payout", status_code=200)
+@catch_errors(logger=logger)
+async def stripe_callback_payment(
+    data: StripeCallbackData,
+    request: Request,
+    wallet_grpc_stub: dependencies.WalletServiceStub,
+):
+    return await services.stripe_callback_payout(
+        data=data, request=request, wallet_grpc_stub=wallet_grpc_stub
     )

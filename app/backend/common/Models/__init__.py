@@ -5,3 +5,4 @@ from .WalletAccount import WalletAccount
 from .WalletTransaction import WalletTransaction
 from .Currency import Currency
 from .StripeAccounts import StripeAccounts
+from .PaymentProviderBalance import PaymentProviderBalance

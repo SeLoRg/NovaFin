@@ -10,11 +10,13 @@ async def grpc_exception_handler(
 ) -> JSONResponse:
     logger.error(f"grpcError: {exc.details()}")
 
-    status_code = 503  # Service Unavailable
-    if exc.code() == grpc.StatusCode.UNAUTHENTICATED:
-        status_code = 401
-    elif exc.code() == grpc.StatusCode.INVALID_ARGUMENT:
-        status_code = 400
+    grpc_to_http_status = {
+        grpc.StatusCode.UNAUTHENTICATED.name: 401,
+        grpc.StatusCode.INVALID_ARGUMENT.name: 400,
+        grpc.StatusCode.NOT_FOUND.name: 404,
+        grpc.StatusCode.UNAVAILABLE.name: 422,
+    }
+    status_code = grpc_to_http_status.get(exc.code().name, 503)  # Service Unavailable
 
     return JSONResponse(
         status_code=status_code,
@@ -33,6 +35,13 @@ async def base_exception(request: Request, exc: Exception):
             "detail": f"Internal server error: {str(exc)}",
             "code": "503",
         },
+    )
+
+
+async def value_error_handler(request: Request, exc: ValueError):
+    return JSONResponse(
+        status_code=400,
+        content={"detail": str(exc)},
     )
 
 

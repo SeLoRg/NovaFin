@@ -16,5 +16,6 @@ app = FastAPI(
 app.include_router(router, prefix="/api")
 app.add_exception_handler(grpc.aio.AioRpcError, grpc_exception_handler)
 app.add_exception_handler(HTTPException, httpexception_handler)
+app.add_exception_handler(ValueError, value_error_handler)
 app.add_exception_handler(Exception, base_exception)
 app.add_middleware(CookieMiddleware)

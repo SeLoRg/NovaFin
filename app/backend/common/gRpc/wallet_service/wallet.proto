@@ -13,23 +13,22 @@ service WalletService {
 
   // Перевод средств между кошельками
   rpc Transfer (TransferRequest) returns (OperationResponse);
+
   // Конвертация валюты в кошельке
   rpc Convert (ConvertRequest) returns (OperationResponse);
 
-  // Списание средств с кошелька
-  rpc Withdraw (WithdrawRequest) returns (OperationResponse);
+  // Создание транзакции на выплату через платежный шлюз
+  rpc CreateWithdrawTransaction (WithdrawRequest) returns (OperationResponse);
 
   // Создание транзакции на оплату через платежный шлюз
   rpc CreatePaymentTransaction (CreatePaymentTransactionRequest) returns (PaymentTransactionResponse);
-
-  // Создание выплаты через платежный шлюз
-  rpc CreatePayoutTransaction (CreatePaymentTransactionRequest) returns (PaymentTransactionResponse);
 
   // Создание/получение аккаунта в stripe
   rpc ConnectAccountStripe (ConnectAccountStripeRequest) returns (PaymentTransactionResponse);
 
   // Callback от stripe
   rpc HandleStripePayment (StripePaymentNotification) returns (WebhookResponse);
+  rpc HandleStripePayout (StripePaymentNotification) returns (WebhookResponse);
 }
 
 // ========== Request/Response Messages ========== //
@@ -71,7 +70,8 @@ message WithdrawRequest {
   string user_id = 1;          // ID пользователя
   double amount = 2;           // Сумма списания
   string currency = 3;         // Валюта
-  string idempotency_key = 4;  // Ключ идемпотентности
+  string getaway = 4;
+  string idempotency_key = 5;  // Ключ идемпотентности
 }
 
 message ConvertRequest {
@@ -110,8 +110,6 @@ message StripePaymentNotification {
   string event_type = 2;                // "payment_intent.succeeded"
   bool livemode = 4;                    // false для тестового режима
 
-  // Подпись вебхука (для верификации)
-
   // Платежные данные
   message PaymentIntent {
     string id = 1;                      // "pi_3RQaa9C1jcvqfRDJ1HWG7Ku7"
@@ -119,17 +117,11 @@ message StripePaymentNotification {
     string currency = 3;                // "usd"
     string status = 4;                  // "succeeded"
     map<string, string> metadata = 5;
-
-    // Доп. поля по необходимости
-    string payment_method = 7;          // "pm_1RQaa8C1jcvqfRDJDDpUO0ce"
-    string customer_email = 8;          // Опционально
   }
 
   PaymentIntent payment_intent = 5;
-
   // Технические поля
   string idempotency_key = 6;           // "b6ea909e-f968-472d-b477-3a9b973990c3"
-  string webhook_id = 7;                // Доп. идентификатор вебхука
 }
 
 

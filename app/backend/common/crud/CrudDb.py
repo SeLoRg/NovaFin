@@ -31,7 +31,7 @@ class CRUD:
         except exc.NoResultFound as e:
             return list()
         except exc.SQLAlchemyError as e:
-            raise ValueError(f"Failed to get {model.__name__}")
+            raise ValueError(f"Failed to get {model.__name__}: {str(e)}")
 
     @staticmethod
     async def create(session: AsyncSession, model: Type[T], **kwargs) -> T:

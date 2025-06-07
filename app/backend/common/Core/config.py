@@ -44,6 +44,7 @@ class PaymentStripe(BaseSettings):
     STRIPE_PUBLIC_KEY: str
     STRIPE_PRIVATE_KEY: str
     STRIPE_WEBHOOK_SECRET: str
+    STRIPE_WEBHOOK_PAYOUT_SECRET: str
 
     model_config = SettingsConfigDict(extra="ignore")
 

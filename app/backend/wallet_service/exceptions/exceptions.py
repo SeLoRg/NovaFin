@@ -1,16 +1,10 @@
-class AuthError(Exception):
-    """Базовая ошибка авторизации"""
-
+class NoWallet(Exception):
     pass
 
 
-class UserAlreadyExists(AuthError):
-    """Пользователь уже зарегистрирован"""
-
+class IdempDone(Exception):
     pass
 
 
-class WeakPassword(AuthError):
-    """Пароль не удовлетворяет требованиям"""
-
+class NoStripeAccount(Exception):
     pass

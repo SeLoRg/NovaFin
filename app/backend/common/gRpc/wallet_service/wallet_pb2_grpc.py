@@ -5,7 +5,7 @@ import warnings
 
 from common.gRpc.wallet_service import wallet_pb2 as wallet__service_dot_wallet__pb2
 
-GRPC_GENERATED_VERSION = "1.70.0"
+GRPC_GENERATED_VERSION = "1.72.1"
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -61,20 +61,14 @@ class WalletServiceStub(object):
             response_deserializer=wallet__service_dot_wallet__pb2.OperationResponse.FromString,
             _registered_method=True,
         )
-        self.Withdraw = channel.unary_unary(
-            "/wallet.WalletService/Withdraw",
+        self.CreateWithdrawTransaction = channel.unary_unary(
+            "/wallet.WalletService/CreateWithdrawTransaction",
             request_serializer=wallet__service_dot_wallet__pb2.WithdrawRequest.SerializeToString,
             response_deserializer=wallet__service_dot_wallet__pb2.OperationResponse.FromString,
             _registered_method=True,
         )
         self.CreatePaymentTransaction = channel.unary_unary(
             "/wallet.WalletService/CreatePaymentTransaction",
-            request_serializer=wallet__service_dot_wallet__pb2.CreatePaymentTransactionRequest.SerializeToString,
-            response_deserializer=wallet__service_dot_wallet__pb2.PaymentTransactionResponse.FromString,
-            _registered_method=True,
-        )
-        self.CreatePayoutTransaction = channel.unary_unary(
-            "/wallet.WalletService/CreatePayoutTransaction",
             request_serializer=wallet__service_dot_wallet__pb2.CreatePaymentTransactionRequest.SerializeToString,
             response_deserializer=wallet__service_dot_wallet__pb2.PaymentTransactionResponse.FromString,
             _registered_method=True,
@@ -87,6 +81,12 @@ class WalletServiceStub(object):
         )
         self.HandleStripePayment = channel.unary_unary(
             "/wallet.WalletService/HandleStripePayment",
+            request_serializer=wallet__service_dot_wallet__pb2.StripePaymentNotification.SerializeToString,
+            response_deserializer=wallet__service_dot_wallet__pb2.WebhookResponse.FromString,
+            _registered_method=True,
+        )
+        self.HandleStripePayout = channel.unary_unary(
+            "/wallet.WalletService/HandleStripePayout",
             request_serializer=wallet__service_dot_wallet__pb2.StripePaymentNotification.SerializeToString,
             response_deserializer=wallet__service_dot_wallet__pb2.WebhookResponse.FromString,
             _registered_method=True,
@@ -120,20 +120,14 @@ class WalletServiceServicer(object):
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
 
-    def Withdraw(self, request, context):
-        """Списание средств с кошелька"""
+    def CreateWithdrawTransaction(self, request, context):
+        """Создание транзакции на выплату через платежный шлюз"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
 
     def CreatePaymentTransaction(self, request, context):
         """Создание транзакции на оплату через платежный шлюз"""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
-
-    def CreatePayoutTransaction(self, request, context):
-        """Создание выплаты через платежный шлюз"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
@@ -146,6 +140,12 @@ class WalletServiceServicer(object):
 
     def HandleStripePayment(self, request, context):
         """Callback от stripe"""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
+    def HandleStripePayout(self, request, context):
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
@@ -173,18 +173,13 @@ def add_WalletServiceServicer_to_server(servicer, server):
             request_deserializer=wallet__service_dot_wallet__pb2.ConvertRequest.FromString,
             response_serializer=wallet__service_dot_wallet__pb2.OperationResponse.SerializeToString,
         ),
-        "Withdraw": grpc.unary_unary_rpc_method_handler(
-            servicer.Withdraw,
+        "CreateWithdrawTransaction": grpc.unary_unary_rpc_method_handler(
+            servicer.CreateWithdrawTransaction,
             request_deserializer=wallet__service_dot_wallet__pb2.WithdrawRequest.FromString,
             response_serializer=wallet__service_dot_wallet__pb2.OperationResponse.SerializeToString,
         ),
         "CreatePaymentTransaction": grpc.unary_unary_rpc_method_handler(
             servicer.CreatePaymentTransaction,
-            request_deserializer=wallet__service_dot_wallet__pb2.CreatePaymentTransactionRequest.FromString,
-            response_serializer=wallet__service_dot_wallet__pb2.PaymentTransactionResponse.SerializeToString,
-        ),
-        "CreatePayoutTransaction": grpc.unary_unary_rpc_method_handler(
-            servicer.CreatePayoutTransaction,
             request_deserializer=wallet__service_dot_wallet__pb2.CreatePaymentTransactionRequest.FromString,
             response_serializer=wallet__service_dot_wallet__pb2.PaymentTransactionResponse.SerializeToString,
         ),
@@ -195,6 +190,11 @@ def add_WalletServiceServicer_to_server(servicer, server):
         ),
         "HandleStripePayment": grpc.unary_unary_rpc_method_handler(
             servicer.HandleStripePayment,
+            request_deserializer=wallet__service_dot_wallet__pb2.StripePaymentNotification.FromString,
+            response_serializer=wallet__service_dot_wallet__pb2.WebhookResponse.SerializeToString,
+        ),
+        "HandleStripePayout": grpc.unary_unary_rpc_method_handler(
+            servicer.HandleStripePayout,
             request_deserializer=wallet__service_dot_wallet__pb2.StripePaymentNotification.FromString,
             response_serializer=wallet__service_dot_wallet__pb2.WebhookResponse.SerializeToString,
         ),
@@ -331,7 +331,7 @@ class WalletService(object):
         )
 
     @staticmethod
-    def Withdraw(
+    def CreateWithdrawTransaction(
         request,
         target,
         options=(),
@@ -346,7 +346,7 @@ class WalletService(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/wallet.WalletService/Withdraw",
+            "/wallet.WalletService/CreateWithdrawTransaction",
             wallet__service_dot_wallet__pb2.WithdrawRequest.SerializeToString,
             wallet__service_dot_wallet__pb2.OperationResponse.FromString,
             options,
@@ -377,36 +377,6 @@ class WalletService(object):
             request,
             target,
             "/wallet.WalletService/CreatePaymentTransaction",
-            wallet__service_dot_wallet__pb2.CreatePaymentTransactionRequest.SerializeToString,
-            wallet__service_dot_wallet__pb2.PaymentTransactionResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True,
-        )
-
-    @staticmethod
-    def CreatePayoutTransaction(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            "/wallet.WalletService/CreatePayoutTransaction",
             wallet__service_dot_wallet__pb2.CreatePaymentTransactionRequest.SerializeToString,
             wallet__service_dot_wallet__pb2.PaymentTransactionResponse.FromString,
             options,
@@ -467,6 +437,36 @@ class WalletService(object):
             request,
             target,
             "/wallet.WalletService/HandleStripePayment",
+            wallet__service_dot_wallet__pb2.StripePaymentNotification.SerializeToString,
+            wallet__service_dot_wallet__pb2.WebhookResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True,
+        )
+
+    @staticmethod
+    def HandleStripePayout(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/wallet.WalletService/HandleStripePayout",
             wallet__service_dot_wallet__pb2.StripePaymentNotification.SerializeToString,
             wallet__service_dot_wallet__pb2.WebhookResponse.FromString,
             options,

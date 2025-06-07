@@ -7,7 +7,14 @@ from redis import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.Enums import TransactionStatus, OperationType, PaymentWorker
-from common.Models import WalletAccount, WalletTransaction, StripeAccounts, Users
+from common.Models import (
+    WalletAccount,
+    WalletTransaction,
+    StripeAccounts,
+    Users,
+    PaymentProviderBalance,
+    Currency,
+)
 from common.crud.CrudDb import CRUD
 from common.Enums.ValuteCode import ValuteCode
 from common.Models.Wallet import Wallet
@@ -227,11 +234,57 @@ class WalletCore:
         session: AsyncSession,
         user_id: str,
         amount: Decimal,
+        getaway: PaymentWorker,
         currency: ValuteCode,
         idempotency_key: str,
     ) -> dict:
         """Списание средств"""
-        pass
+        logger.info(f"-----Списание средств-------")
+        logger.info(f"Проверка идемпотентности...")
+        if await self._check_idempotency(idempotency_key):
+            raise ValueError(
+                f"Операция с idempotency_key={idempotency_key} уже обработана"
+            )
+
+        correlation_id = str(uuid.uuid4())
+
+        logger.info(f"Получение кошелька пользователя id={user_id}...")
+        user_wallet_id: int = await self._get_wallet_id(
+            session=session, user_id=int(user_id)
+        )
+        logger.info(f"Кошелек получен")
+
+        logger.info(f"Создание выплаты в зависимости от выбранного шлюза")
+        payout_creaters = {PaymentWorker.STRIPE.value: None}
+
+        logger.info(f"Выплата создана")
+
+        logger.info(f"Создание записи о транзакции в бд со статусом PENDING...")
+        wallet_transaction = await self.crud.create(
+            session=session,
+            model=WalletTransaction,
+            user_id=int(user_id),
+            currency=currency.value,
+            amount=amount,
+            operation_type=OperationType.WITHDRAW,
+            correlation_id=correlation_id,
+            idempotency_key=idempotency_key,
+            payment_worker=getaway.value,
+            wallet_id=user_wallet_id,
+            status=TransactionStatus.PENDING,
+        )
+        logger.info(f"Запись создана")
+
+        logger.info(f"Кэширование idempotency_key...")
+        await self._cashed_idempotency(idempotency_key=idempotency_key)
+        logger.info(f"Кэширование успешно")
+
+        response = {
+            "correlation_id": correlation_id,
+            "status": wallet_transaction.status.value,
+        }
+
+        return response
 
     async def create_payment_transaction_url(
         self,
@@ -277,63 +330,6 @@ class WalletCore:
             f"Выбор метода создания в зависимоти от платежного шлюза({gateway.value})..."
         )
         handlers = {f"{PaymentWorker.STRIPE.value}": self._create_payment_stripe}
-        redirect_url: str = await handlers[gateway.value](
-            amount=amount,
-            currency=currency,
-            wallet_id=user_wallet_id,
-            transaction_id=wallet_transaction.id,
-        )
-
-        logger.info(f"Кэширование idempotency_key...")
-        await self._cashed_idempotency(idempotency_key=idempotency_key)
-        logger.info(f"Кэширование успешно")
-
-        return {"redirect_url": redirect_url}
-
-    async def create_payout_transaction_url(
-        self,
-        session: AsyncSession,
-        user_id: str,
-        amount: float,
-        idempotency_key: str,
-        currency: ValuteCode,
-        gateway: PaymentWorker,
-    ) -> dict:
-        """Создание транзакции для платежного шлюза"""
-        logger.info(f"--Создание транзакции на выплату через платежный шлюз--")
-
-        logger.info(f"Проверка идемпотентности...")
-        if await self._check_idempotency(idempotency_key):
-            raise ValueError(
-                f"Операция с idempotency_key={idempotency_key} уже обработана"
-            )
-
-        logger.info(f"Получение кошелька пользователя id={user_id}...")
-        user_wallet_id: int = await self._get_wallet_id(
-            session=session, user_id=int(user_id)
-        )
-        logger.info(f"Кошелек получен")
-
-        logger.info(f"Создание записи о транзакции в бд со статусом PENDING...")
-        correlation_id = uuid.uuid4()
-        wallet_transaction = await self.crud.create(
-            session=session,
-            model=WalletTransaction,
-            user_id=int(user_id),
-            amount=amount,
-            operation_type=OperationType.WITHDRAW,
-            correlation_id=correlation_id,
-            currency=currency,
-            idempotency_key=idempotency_key,
-            wallet_id=user_wallet_id,
-            status=TransactionStatus.PENDING,
-        )
-        logger.info(f"Запись создана")
-
-        logger.info(
-            f"Выбор метода создания в зависимоти от платежного шлюза({gateway.value})..."
-        )
-        handlers = {f"{PaymentWorker.STRIPE.value}": self._create_payout_stripe}
         redirect_url: str = await handlers[gateway.value](
             amount=amount,
             currency=currency,
@@ -396,61 +392,75 @@ class WalletCore:
         logger.info(f"Ссылка создана")
         return {"redirect_url": link.url}
 
-    async def handle_callback(
-        self, session: AsyncSession, gateway: PaymentWorker, data: dict
-    ):
-        # Трансформация в единый формат
-        normalized: dict = self._normalize_data(gateway, data)
-
+    async def stripe_callback_deposit(self, session: AsyncSession, data: dict):
         # Идемпотентность
         logger.info(f"Проверка идемпотентности...")
-        idempotency_key = normalized.get("idempotency_key")
+        idempotency_key = data.get("idempotency_key")
         if await self._check_idempotency(idempotency_key):
-            raise ValueError(
-                f"Операция с idempotency_key={idempotency_key} уже обработана"
-            )
+            return {"success": True, "message": "Success!"}
 
-        if normalized.get("status") != "succeeded":
-            return {"status": False, "message": "Failed"}
-
-        # Тестовый режим
-        logger.info(f"Проверка на тестовый режим")
-        if not normalized.get("livemode"):
-            if not settings.PAYMENT_TEST_MODE:
-                logger.info(f"Ответ от шлюза тестовый")
-                return {"status": True, "message": "Success!"}
-
-        # Транзакции из бд
+        # Транзакция из бд
         logger.info(f"Получение записи о транзакции из бд")
         transaction = await self.crud.get_by_filter(
             session=session,
             model=WalletTransaction,
-            id=int(normalized.get("transaction_id")),
+            id=int(data.get("payment_intent").get("metadata").get("transaction_id")),
         )
         transaction = transaction[0]
         logger.info(f"Запись получена")
+
+        event_type = data.get("event_type")
+        if event_type != "payment_intent.succeeded":
+
+            logger.info(f"Кэширование idempotency_key...")
+            await self._cashed_idempotency(idempotency_key=idempotency_key)
+            logger.info(f"Кэширование успешно")
+
+            return {"success": False, "message": "Failed!"}
+
+        # Тестовый режим
+        logger.info(f"Проверка на тестовый режим")
+        if not data.get("livemode"):
+            if not settings.PAYMENT_TEST_MODE:
+                logger.info(f"Ответ от шлюза тестовый")
+
+                logger.info(f"Кэширование idempotency_key...")
+                await self._cashed_idempotency(idempotency_key=idempotency_key)
+                logger.info(f"Кэширование успешно")
+
+                return {"status": True, "message": "Success!"}
 
         # Отправка в Kafka
         logger.info(f"Отправка сообщения в топик...")
         message = WalletTransactionRequest(
             operation=OperationType.DEPOSIT,
-            amount=normalized.get("amount"),
-            currency=normalized.get("currency"),
-            idempotency_key=normalized.get("idempotency_key"),
+            amount=float(data.get("payment_intent").get("amount")) / 100,
+            currency=ValuteCode(data.get("payment_intent").get("currency").upper()),
+            idempotency_key=data.get("idempotency_key"),
             correlation_id=str(transaction.correlation_id),
-            wallet_id=normalized.get("wallet_id"),
+            wallet_id=int(data.get("payment_intent").get("metadata").get("wallet_id")),
         ).to_dict()
 
         await async_kafka_client.produce_message(
-            topic=settings.WALLET_WORKER_REQUEST_TOPIC, message=json.dumps(message)
+            topic=settings.WALLET_WORKER_REQUEST_TOPIC,
+            message=json.dumps(message),
         )
         logger.info(f"Сообщение отправлено")
 
         logger.info(f"Обновление статуса транзакции и добавление payment_id")
         transaction.status = TransactionStatus.PROCESSED
-        transaction.external_id = normalized.get("payment_id")
+        transaction.external_id = data.get("payment_intent").get("payment_id")
         await session.flush()
         logger.info(f"Статус и поле external_id обновлены")
+
+        logger.info(f"Обновление баланса провайдера в бд...")
+        await self._update_provider_balance(
+            session=session,
+            provider=PaymentWorker.STRIPE,
+            amount=float(data.get("payment_intent").get("amount")) / 100,
+            currency=ValuteCode(data.get("payment_intent").get("currency").upper()),
+        )
+        logger.info(f"Обновление успешно")
 
         logger.info(f"Кэширование idempotency_key...")
         await self._cashed_idempotency(idempotency_key=idempotency_key)
@@ -459,6 +469,47 @@ class WalletCore:
         return {"success": True, "message": "Success!"}
 
     # --- Вспомогательные методы ---
+
+    async def _stripe_payout_creater(
+        self, session: AsyncSession, currency: ValuteCode, user_id: int, amount: float
+    ):
+
+        stripe_account: list[StripeAccounts] = await self.crud.get_by_filter(
+            session=session, model=StripeAccounts, user_id=user_id
+        )
+
+        if len(stripe_account) == 0:
+            raise ValueError("Connected stripe account not found for this user")
+
+        stripe_account_id = stripe_account[0].stripe_account_id
+
+        account: stripe.Account = stripe.Account.retrieve(
+            stripe_account, expand=["requirements"]
+        )
+        if account.requirements.disabled_reason:
+            raise ValueError(
+                f"Account not ready: {account.requirements.disabled_reason}"
+            )
+
+        transfer: stripe.Transfer = stripe.Transfer.create(
+            amount=amount,
+            currency=currency.value.lower(),
+            destination=stripe_account_id,
+            description=f"Manual withdrawal for user {user_id}",
+        )
+
+        payout: stripe.Payout = stripe.Payout.create(
+            amount=amount,
+            currency=currency.value.lower(),
+            stripe_account=stripe_account_id,
+            method="standard",
+        )
+
+        return {
+            "transfer_id": transfer.id,
+            "payout_id": payout.id,
+            "status": payout.status,
+        }
 
     async def _check_idempotency(self, idempotency_key: str) -> bool:
         """Проверка, была ли уже обработана операция"""
@@ -510,40 +561,6 @@ class WalletCore:
         logger.info(f"Ссылка создана")
         return session.url  # URL для редиректа на страницу оплаты Stripe
 
-    @staticmethod
-    async def _create_payout_stripe(
-        amount: float, currency: ValuteCode, wallet_id: int, transaction_id: int
-    ) -> str:
-        """Создает платежное намерение в Stripe"""
-        logger.info(f"Создание ссылки на платеж через Stripe")
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            line_items=[
-                {
-                    "price_data": {
-                        "currency": currency.value.lower(),
-                        "product_data": {
-                            "name": "Пополнение баланса",
-                        },
-                        "unit_amount": int(amount * 100),  # Переводим в центы/копейки
-                    },
-                    "quantity": 1,
-                }
-            ],
-            mode="payout",
-            success_url=settings.NOVAFIN_URL,
-            cancel_url=settings.NOVAFIN_URL,
-            metadata={"wallet_id": wallet_id, "transaction_id": transaction_id},
-            payment_intent_data={
-                "metadata": {
-                    "wallet_id": wallet_id,
-                    "transaction_id": transaction_id,
-                }
-            },
-        )
-        logger.info(f"Ссылка создана")
-        return session.url  # URL для редиректа на страницу оплаты Stripe
-
     async def _cashed_idempotency(self, idempotency_key: str):
         await self.redis.setex(
             name=f"{settings.REDIS_KEY_IDEMPOTENCY}:{idempotency_key}",
@@ -576,25 +593,56 @@ class WalletCore:
             topic=settings.WALLET_WORKER_REQUEST_TOPIC, message=json.dumps(message)
         )
 
-    @staticmethod
-    def _normalize_data(gateway: PaymentWorker, data: dict) -> dict:
-        if gateway == gateway.STRIPE:
-            return {
-                "idempotency_key": data.get("idempotency_key"),
-                "amount": float(data.get("payment_intent").get("amount")) / 100,
-                "currency": ValuteCode(
-                    data.get("payment_intent").get("currency", "").upper()
-                ),
-                "wallet_id": data.get("payment_intent")
-                .get("metadata", {})
-                .get("wallet_id"),
-                "payment_id": data.get("payment_intent").get("id"),
-                "status": data.get("payment_intent").get("status"),
-                "livemode": data.get("livemode"),
-                "transaction_id": data.get("payment_intent")
-                .get("metadata", {})
-                .get("transaction_id"),
-            }
+    async def _update_provider_balance(
+        self,
+        session: AsyncSession,
+        provider: PaymentWorker,
+        amount: float,
+        currency: ValuteCode,
+    ):
+        logger.info(f"Получение баланса провайдера")
+        provider_balance = await self.crud.get_by_filter(
+            session=session, model=PaymentProviderBalance, provider=provider
+        )
+        provider_currencies = {PaymentWorker.STRIPE.value: ValuteCode.USD}
+
+        if len(provider_balance) == 0:
+            logger.info(f"Создание баланса для провайдера")
+            provider_balance = await self.crud.create(
+                session=session,
+                model=PaymentProviderBalance,
+                provider=provider,
+                currency=provider_currencies[provider.value],
+                available_amount=0,
+            )
+        else:
+            provider_balance = provider_balance[0]
+
+        logger.info(f"Получение курса {currency} к рублю")
+        currency_to_rub = await self.crud.get_by_filter(
+            session=session, model=Currency, code=currency.value
+        )
+        currency_to_rub = currency_to_rub[0]
+
+        if provider == PaymentWorker.STRIPE:
+            if currency == provider_balance.currency:
+                provider_balance.available_amount += amount
+            else:
+                logger.info(f"Получение курса {provider_balance.currency} к рублю")
+                provider_currency_to_rub = await self.crud.get_by_filter(
+                    session=session,
+                    model=Currency,
+                    code=provider_balance.currency.value,
+                )
+                provider_currency_to_rub = provider_currency_to_rub[0]
+
+                provider_balance.available_amount = (
+                    provider_balance.available_amount
+                    + float(
+                        (amount * float(currency_to_rub.rate_to_base))
+                        / float(provider_currency_to_rub.rate_to_base)
+                    )
+                )
 
 
 crud = CRUD()

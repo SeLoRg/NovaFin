@@ -49,14 +49,6 @@ class DepositRequest(BaseModel):
     source: Optional[str] = None
 
 
-class WithdrawRequest(BaseModel):
-    user_id: str = Field(..., description="ID пользователя")
-    amount: float
-    currency: ValuteCode
-    idempotency_key: str
-    destination: str
-
-
 class ConvertRequest(BaseModel):
     from_currency: ValuteCode
     to_currency: ValuteCode
@@ -76,10 +68,10 @@ class CreatePaymentTransactionRequest(BaseModel):
     idempotency_key: str
 
 
-class CreatePayoutTransactionRequest(BaseModel):
+class StripeWithdrawRequest(BaseModel):
     amount: float
+    currency: ValuteCode = ValuteCode.USD.value
     idempotency_key: str
-    currency: ValuteCode = ValuteCode.USD
 
 
 class PaymentTransactionResponse(BaseModel):

@@ -38,6 +38,7 @@ class WalletServiceServicer(wallet_pb2_grpc.WalletServiceServicer):
                 user_id=request.user_id,
                 currency=ValuteCode(request.currency) if request.currency else None,
             )
+            logger.debug(f"res: {service_result}")
 
         return ParseDict(service_result, wallet_pb2.BalanceResponse())
 

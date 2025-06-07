@@ -57,8 +57,11 @@ async def get_balance(
         request_to_grpc.currency = currency.value
 
     response_from_grpc = await wallet_grpc_stub.GetBalance(request=request_to_grpc)
-    result = MessageToDict(response_from_grpc, preserving_proto_field_name=True)
-    logger.info(f"Ответ: {result}")
+    result = MessageToDict(
+        response_from_grpc,
+        preserving_proto_field_name=True,
+    )
+    logger.debug(f"Ответ: {result}")
 
     return BalanceResponse(
         user_id=result.get("user_id"),

@@ -53,7 +53,7 @@ message BalanceResponse {
 
   message BalanceEntry {
     string currency = 1;
-    double amount = 2;
+    optional double amount = 2;
     string type = 3;           // FIAT/CRYPTO
   }
 }
